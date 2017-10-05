@@ -1,0 +1,62 @@
+FIRST&nt_program&{t_eof, t_eps, t_id, t_read, t_write, t_if, t_do, t_check}
+FIRST&nt_stmt_list&{t_eps, t_id, t_read, t_write, t_if, t_do, t_check}
+FIRST&nt_stmt&{t_id, t_read, t_write, t_if, t_do, t_check}
+FIRST&nt_factor&{t_lparen, t_id, t_literal}
+FIRST&nt_expr_tail&{t_eps, t_eq, t_neq, t_lt, t_gt, t_lte, t_gte}
+FIRST&nt_term_tail&{t_eps, t_add, t_sub}
+FIRST&nt_factor_tail&{t_eps, t_mul, t_div}
+FIRST&nt_ro_op&{t_eq, t_neq, t_lt, t_gt, t_lte, t_gte}
+FIRST&nt_ao_op&{t_add, t_sub}
+FIRST&nt_mo_op&{t_mul, t_div}
+FIRST&nt_term&{t_lparen, t_id, t_literal}
+FIRST&nt_expr&{t_lparen, t_id, t_literal}
+FIRST&nt_relation&{t_lparen, t_id, t_literal}
+
+
+FOLLOW&nt_program&{}
+FOLLOW&nt_stmt_list&{t_fi, t_od, t_eof}
+FOLLOW&nt_stmt&{t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+FOLLOW&nt_relation&{t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+FOLLOW&nt_expr&{t_eq, t_neq, t_lt, t_gt, t_lte, t_gte, t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+FOLLOW&nt_term&{t_add, t_sub, t_eq, t_neq, t_lt, t_gt, t_lte, t_gte, t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+FOLLOW&nt_factor&{t_mul, t_div, t_add, t_sub, t_eq, t_neq, t_lt, t_gt, t_lte, t_gte, t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+FOLLOW&nt_expr_tail&{t_rparent, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+FOLLOW&nt_term_tail&{t_eq, t_neq, t_lt, t_gt, t_lte, t_gte, t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+FOLLOW&nt_factor_tail&{t_add, t_sub, t_eq, t_neq, t_lt, t_gt, t_lte, t_gte, t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+FOLLOW&nt_ro_op&{t_lparent, t_id, t_literal}
+FOLLOW&nt_ao_op&{t_lparent, t_id, t_literal}
+FOLLOW&nt_mo_op&{t_lparent, t_id, t_literal}
+
+
+PREDICT&P->SL EOF&{t_id, t_read, t_write, t_if, t_do, t_check, t_eof}
+PREDICT&SL->S SL&{t_id, t_read, t_write, t_if, t_do, t_check}
+PREDICT&SL->EPS&{t_fi, t_od, t_eof}
+PREDICT&S->id := R&{t_id}
+PREDICT&S->read id&{t_read}
+PREDICT&S->write R&{t_write}
+PREDICT&S->if R SL fi&{t_if}
+PREDICT&S->do SL od&{t_do}
+PREDICT&S->check R&{t_check}
+PREDICT&R->E ET&{t_lparen, t_id, t_literal}
+PREDICT&E->T TT&{t_lparen, t_id, t_literal}
+PREDICT&T->F FT－{t_lparen, t_id, t_literal}
+PREDICT&F->( R )&{t_lparen}
+PREDICT&F->id&{t_id}
+PREDICT&F->lit&{t_literal}
+PREDICT&ET->ro E&{t_eq, t_neq, t_lt, t_gt, t_lte, t_gte}
+PREDICT&ET->EPS&{t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+PREDICT&TT->ao T TT&{t_add, t_sub}
+PREDICT&TT->EPS&{t_eq, t_neq, t_lt, t_gt, t_lte, t_gte, t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+PREDICT&FT->mo F FT&{t_mul, t_div}
+PREDICT&FT->EPS&{t_add, t_sub, t_eq, t_neq, t_lt, t_gt, t_lte, t_gte, t_rparen, t_id, t_read, t_write, t_if, t_do, t_check, t_fi, t_od, t_eof}
+PREDICT&ro->==&{t_eq}
+PREDICT&ro-><>&{t_neq}
+PREDICT&ro-><&{t_lt}
+PREDICT&ro->>&{t_gt}
+PREDICT&ro-><=&{t_lte}
+PREDICT&ro->>=&{t_gte}
+PREDICT&ao->+&{t_add}
+PREDICT&ao->-&{t_sub}
+PREDICT&mo->*&{t_mul}
+PREDICT&mo->/&{t_div}
+
