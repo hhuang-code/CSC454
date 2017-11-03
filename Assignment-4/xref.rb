@@ -34,11 +34,14 @@ if __FILE__ == $0
 			line_info.pc, lb, line_info.row, comma, line_info.col, rb = line_match.captures
 			if file_match = line.match(file_re)
 				filename = file_match.captures
-				file_hash[filename] = Set.new
+				file_hash[filename] = Array.new
 			end
-			line_info.filename = filename.at(0)
-			file_hash[filename].add(line_info)
-			#puts line_info.pc + ' ' + line_info.row + ' ' + line_info.col + ' ' + line_info.filename.at(0)
+			line_info.filename = filename.at(0).strip
+			# Trim leading and tailing whitespace
+			line_info.pc = line_info.pc.strip
+			line_info.row = line_info.row.strip
+			line_info.col = line_info.col.strip
+			file_hash[filename].push(line_info)
 		end
 		}
 	}
@@ -70,8 +73,8 @@ if __FILE__ == $0
 					else
 						if instr_match = line.match(angle_re)
 							instr_info = OpenStruct.new
-							instr_info.pc = 'empty'
-							instr_info.code = 'empty'
+							instr_info.pc = ''
+							instr_info.code = ''
 							instr_arr.push(instr_info)
 						end
 					end
