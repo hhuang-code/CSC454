@@ -1,0 +1,18 @@
+<html>
+	<head>
+	    <link rel = "stylesheet" type = "text/css" href = "style.css">
+	</head>
+	<body>
+		<h1 id = "title"><%= source_file_name %></h1>
+		<div class = "code">
+            <div class = "assembly">
+                hello
+            </div>
+            <div class = "source">
+				<% source_content.each do |line| %>
+					<%= line %></br>
+				<% end %>
+            </div>
+		</div>
+	<body>
+</html>

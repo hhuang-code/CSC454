@@ -1,0 +1,23 @@
+#title{
+	text-align: center;
+}
+
+.container{
+	height: auto;
+	overflow: hidden;
+}
+
+.assembly{
+	float: left;
+	width: 45%;
+	text-align: left;
+	border: 3px solid green;
+}
+
+.source{
+	float: right;
+	width: 45%;
+	text-align: left;
+	border: 3px solid green;
+}
+
