@@ -9,15 +9,20 @@
 
 .assembly{
 	float: left;
-	width: 45%;
-	text-align: left;
-	border: 3px solid green;
+	width: 48%;
+	text-align: right;
+	font-size:x-large;
+	border: 1px solid green;
 }
 
 .source{
 	float: right;
-	width: 45%;
+	width: 48%;
 	text-align: left;
-	border: 3px solid green;
+	font-size:x-large;
+	border: 1px solid green;
 }
 
+.gray{
+	color: gray;
+}
