@@ -1,18 +1,42 @@
 <html>
 	<head>
-	    <link rel = "stylesheet" type = "text/css" href = "style.css">
+	    <link rel = "stylesheet" type = "text/css" href = "css/style.css">
 	</head>
 	<body>
-		<h1 id = "title"><%= source_file_name %></h1>
+		<h1 id = "title">Cross-Indexing</h1>
 		<div class = "code">
-            <div class = "assembly">
-                hello
-            </div>
-            <div class = "source">
-				<% source_content.each do |line| %>
-					<%= line %></br>
+			<div class = "assembly">
+				<% final_arr.each do |final_tuple| %>
+					<% if final_tuple.instr == nil%>
+						<% if final_tuple.pc != nil %>
+							<span><%= final_tuple.pc %></br></span>
+						<% else %>
+							</br>
+						<% end %>
+					<% else %>
+						<span id = "<%= final_tuple.pc %>">
+							<% if final_tuple.target != nil %>
+								<a href = "#<%= final_tuple.target %>"><%= final_tuple.instr %></a></br>
+							<% else %>
+								<%= final_tuple.instr %></br>
+							<% end %>
+						</span>
+					<% end %>
 				<% end %>
             </div>
+            <div class = "source">
+				<% final_arr.each do |final_tuple| %>
+					<% if final_tuple.src == nil%>
+						</br>
+					<% else %>
+						<% if final_tuple.gray %>
+							<span class = "gray"><%= final_tuple.src %></br></span>
+						<% else %>
+							<span><%= final_tuple.src %></br></span>
+						<% end %>
+					<% end %>
+				<% end %>
+			</div>
 		</div>
 	<body>
 </html>
