@@ -1,0 +1,127 @@
+.c_auto{
+	color: #ffcccc
+}
+
+.c_short{
+	color: #ff9999
+}
+
+.c_int{
+	color: #ff0000
+}
+
+.c_long{
+	color: #ffff00
+}
+
+.c_float{
+	color: #ffbf00
+}
+
+.c_double{
+	color: #99cc00
+}
+
+.c_char{
+	color: #ccff33
+}
+
+.c_struct{
+	color: #ff6699
+}
+
+.c_union{
+	color: #ffd966
+}
+
+.c_enum{
+	color: #66ffb3
+}
+
+.c_typedef{
+	color: #00ff00
+}
+
+.c_const{
+	color: #339933
+}
+
+.c_unsigned{
+	color: #00ff99
+}
+
+.c_signed{
+	color: #66ffff
+}
+
+.c_extern{
+	color: #999966
+}
+
+.c_register{
+	color: #cc3300
+}
+
+.c_static{
+	color: #cc99ff
+}
+
+.c_volatile{
+	color: #660033
+}
+
+.c_void{
+	color: #66ccff
+}
+
+.c_if{
+	color: #9966ff
+}
+
+.c_else{
+	color: #3366ff
+}
+
+.c_switch{
+	color: #ff00ff
+}
+
+.c_case{
+	color: #3333cc
+}
+
+.c_for{
+	color: #ff99ff
+}
+
+.c_do{
+	color: #0066ff
+}
+
+.c_while{
+	color: #3366cc
+}
+
+.c_goto{
+	color: #669999
+}
+
+.c_continue{
+	color: #009933
+}
+
+.c_break{
+	color: #cccc00
+}
+
+.c_default{
+	color: #cc99ff
+}
+
+.c_sizeof{
+	color: #993333
+}
+
+.c_return{
+	color: #0000ff
+}
