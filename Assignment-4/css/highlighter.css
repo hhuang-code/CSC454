@@ -125,3 +125,11 @@
 .c_return{
 	color: #0000ff
 }
+
+.c_inline{
+	color: #e6e600
+}
+
+.c_restrict{
+	color: ##b30000
+}
