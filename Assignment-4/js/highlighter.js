@@ -6,7 +6,8 @@ var dict = {'auto': 'c_auto', 'short': 'c_short', 'int': 'c_int', 'long': 'c_lon
 'static': 'c_static', 'volatile': 'c_volatile', 'void': 'c_void', 'if': 'c_if',
 'else': 'c_else', 'switch': 'c_switch', 'case': 'c_case', 'for': 'c_for',
 'do': 'c_do', 'while': 'c_while', 'goto': 'c_goto', 'continue': 'c_continue',
-'break': 'c_break', 'default': 'c_default', 'sizeof': 'c_sizeof', 'return': 'c_return'};
+'break': 'c_break', 'default': 'c_default', 'sizeof': 'c_sizeof', 'return': 'c_return',
+'inline': 'c_inline', 'restrict': 'c_restrict'};
 
 var str = 'void main(){int a; int b; a = b}';
 
@@ -24,7 +25,7 @@ function check_and_replace(string){
 	string = string.trim();
 	for(var key in dict){
 		var result = [];
-		re = new RegExp(key, "g");
+		re = new RegExp(key + ' ', "g");
 		while((match = re.exec(string)) != null){
 			result.push(match.index);
 		}
