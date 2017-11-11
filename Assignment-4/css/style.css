@@ -2,15 +2,14 @@
 	text-align: center;
 }
 
-.container{
-	height: auto;
-	overflow: hidden;
+.search{
+	margin-bottom: 10px;
+	text-align: right;
 }
 
 .assembly{
 	float: left;
 	width: 49%;
-	/*text-align: right;*/
 	font-size:x-large;
 	border: 1px solid green;
 }
@@ -18,7 +17,6 @@
 .source{
 	float: right;
 	width: 49%;
-	/*text-align: left;*/
 	font-size:x-large;
 	border: 1px solid green;
 }
@@ -34,4 +32,11 @@ table{
 td{
 	padding: 5px;
 	border-bottom: 1px dotted black;
+}
+
+.links{
+	margin-top: 10px;
+	float: left;
+    width: 100%;
+	border: 1px solid red;
 }
