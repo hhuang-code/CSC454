@@ -5,7 +5,7 @@ require 'set'
 require 'erb'
 
 # Check whether the given program counter is listed in debug_info
-def has_src(file_hash, pc)
+def sc_sc_has_instr(file_hash, pc)
 	file_hash.each do |filename, debug_line_arr|
 		debug_line_arr.each do |line_info|
 			if Integer(line_info.pc) == Integer('0x' + pc)
@@ -28,7 +28,7 @@ def has_src(file_hash, pc)
 end
 
 # Check whether a given row in the source file has corresponding assembly
-def has_instr(instr_hash, func_set, program_cnter)
+def sc_has_instr(instr_hash, func_set, program_cnter)
 	instr_hash.each do |pc, ass_code|
 		if !func_set.include?(pc) && Integer('0x' + pc) == Integer(program_cnter)
 			return true, pc, ass_code
@@ -38,7 +38,7 @@ def has_instr(instr_hash, func_set, program_cnter)
 end
 
 # Check whether a given assembly instruction has been added to final_hash
-def added_final_hash(final_hash, program_cnter)
+def sc_added_final_hash(final_hash, program_cnter)
 	final_hash.each do |filename, final_tuple_arr|
 		final_tuple_arr.each do |final_tuple|
 			if final_tuple.pc != nil && Integer('0x' + final_tuple.pc) == Integer('0x' + program_cnter)
@@ -49,15 +49,8 @@ def added_final_hash(final_hash, program_cnter)
 	return false
 end
 
-if __FILE__ == $0
-	# Check argument
-	if ARGV.length != 1
-		puts "Please input the name of the executable file."
-		exit
-	end
-
-	# Name of the executable file
-	exe_name = ARGV[0]
+# Source centric
+def xrefsc(exe_name)
 	
 	# An array to store .debug_line info
 	debug_line_arr = Array.new
@@ -187,14 +180,6 @@ if __FILE__ == $0
 			end
 		end
 	end
-
-	puts '---------------------------- debug_line ----------------------------'
-	file_hash.each do |file, debug_line|
-		debug_line.each do |line_info|
-			puts line_info.pc + ' ' + line_info.row + ' ' + line_info.col + ' ' + ' ' + line_info.gray.to_s + ' ' + line_info.filename
-		end
-		puts "\n"
-	end
 	
 	# Parse the output of objdump
 	instr_hash = Hash.new
@@ -236,12 +221,6 @@ if __FILE__ == $0
 		}
 	}
 
-	puts '---------------------------- instructions ----------------------------'
-	instr_hash.each do |program_cnter, ass_code|
-		puts program_cnter + ' ' + ass_code
-	end
-	puts "\n"
-
 	# Read in all source files, and store them in a hashmap
 	# Key is file name, and value is an array, each element is a line.
 	file_content_hash = Hash.new
@@ -274,7 +253,6 @@ if __FILE__ == $0
 				for i in 1..2 * space_num + 4 * tab_num
 					line = '&nbsp;' + line
 				end
-				puts line
 				source_content_arr.push(line)
 			end
 			file.close
@@ -289,6 +267,7 @@ if __FILE__ == $0
 	file_hash.each do |filename, debug_line_arr|
 		final_hash[filename] = Array.new
 		debug_line_arr.each do |line_info|
+			puts line_info.pc + ' ' + line_info.row
 			# The source has no corresponding assembly instructions
 			if line_info.pc == '0xffffffff'
 				final_tuple = OpenStruct.new
@@ -301,9 +280,9 @@ if __FILE__ == $0
 			# The source has corresponding assembly instructions
 			else
 				# Double check. The pc on lhs and rhs have the same value, but different format
-				has_instr_res, pc, ass_code = has_instr(instr_hash, func_set, line_info.pc)
+				sc_has_instr_res, pc, ass_code = sc_has_instr(instr_hash, func_set, line_info.pc)
 				# Has assembly
-				if has_instr_res
+				if sc_has_instr_res
 					final_tuple = OpenStruct.new
 					final_tuple.pc = pc
 					final_tuple.instr = ass_code
@@ -320,11 +299,11 @@ if __FILE__ == $0
 							break
 						# Meet a program counter
 						else
-							has_src_res, _ = has_src(file_hash, instr_hash.keys[next_idx])
-							if has_src_res
+							sc_sc_has_instr_res, _ = sc_sc_has_instr(file_hash, instr_hash.keys[next_idx])
+							if sc_sc_has_instr_res
 								break
 							else
-								if !added_final_hash(final_hash, instr_hash.keys[next_idx])
+								if !sc_added_final_hash(final_hash, instr_hash.keys[next_idx])
 									final_tuple = OpenStruct.new
 									final_tuple.pc = instr_hash.keys[next_idx]
 									final_tuple.instr = instr_hash.values[next_idx]
@@ -355,14 +334,6 @@ if __FILE__ == $0
 			else
 				final_tuple.src = nil
 			end
-		end
-	end
-
-	# ----------------------------------------- Checking ---------------------------------------------
-	final_hash.each do |filename, final_tuple_arr|
-		puts "\n" + filename
-		final_tuple_arr.each do |final_tuple|
-			puts final_tuple.pc.to_s + ' ' + final_tuple.instr.to_s + ' ' + final_tuple.row.to_s + ' ' + final_tuple.filename.to_s + ' ' + final_tuple.gray.to_s + ' ' + final_tuple.src.to_s
 		end
 	end
 
