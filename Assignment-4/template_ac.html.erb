@@ -1,0 +1,80 @@
+<html>
+	<head>
+		<link rel = "stylesheet" type = "text/css" href = "css/style.css">
+		<link rel = "stylesheet" type = "text/css" href = "css/highlighter.css">
+
+		<script src = "js/highlighter.js"></script>
+		<script src = "js/search.js"></script>
+		<script>
+			function load(){
+				highlight();
+			}
+		</script>
+	</head>
+	<body onload = "load()">
+		<h1 id = "title">Cross-Indexing</h1>
+		<div class = "search">
+			<input type = "text" id = "search_target"/>
+			<button type = "button" onclick = "search()">Find</button>
+			<button type = "button" onclick = "clear_found()">Clear</button>
+		</div>
+		<div class = "code">
+			<div class = "assembly">
+				<table>
+					<% final_arr.each do |final_tuple| %>
+						<tr>
+							<% if final_tuple.instr == nil%>
+								<% if final_tuple.pc != nil %>
+									<td><%= final_tuple.pc %></br></td>
+								<% else %>
+									<td></br></td>
+								<% end %>
+							<% else %>
+								<td id = "<%= final_tuple.pc %>">
+									<% if final_tuple.target != nil %>
+										<a href = "#<%= final_tuple.target %>"><%= final_tuple.instr %></a></br>
+									<% else %>
+										<%= final_tuple.instr %></br>
+									<% end %>
+								</td>
+							<% end %>
+						</tr>
+					<% end %>
+				</table>
+            </div>
+			<div class = "source">
+				<table>
+					<% final_arr.each do |final_tuple| %>
+						<tr>
+							<% if final_tuple.src == nil%>
+								<td></br></td>
+							<% else %>
+								<% if final_tuple.gray %>
+									<td class = "srcline"><span class = "gray"><%= final_tuple.src %></span></br></td>
+								<% else %>
+									<td class = "srcline"><%= final_tuple.src %></br></td>
+								<% end %>
+							<% end %>
+						</tr>
+					<% end %>
+				</table>
+			</div>
+		</div>
+
+		<div class = "links">
+			<table>
+				<% links_target_arr.each do |link_struct| %>
+					<tr>
+						<% if link_struct.id != nil%>
+							<td id = "<%= link_struct.id%>">
+						<% else %>
+							<td>
+						<% end %>
+							<%= link_struct.link %></br>
+						</td>
+					</tr>
+				<% end %>
+			</table>
+		</div>
+	<body>
+</html>
