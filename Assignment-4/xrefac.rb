@@ -201,10 +201,14 @@ if __FILE__ == $0
 	
 	# Parse the output of objdump
 	instr_hash = Hash.new
+	all_instr_arr = Array.new	# Used for find links to names declared in standard header files
 	text_sec = false
 	func_part = false
 	IO.popen(['objdump', '-d', exe_name]){
 		|io| io.each {|line|
+			# Directly added to all_instr_hash
+			all_instr_arr.push(line)
+
 			# Check if it is a function part
 			if name_match = line.match(angle_re)
 				space1, num, space2, lp, name, rp = name_match.captures
@@ -341,9 +345,9 @@ if __FILE__ == $0
 	jump_re = /(^callq|jmp|jo|jno|js|jns|je|jz|jne|jnz|jb|jnae|jc|jnb|jae|jnc|jbe|jna|ja|jnbe|jl|jnge|jge|jnl|jle|jng|jg|jnle|jp|jpe|jnp|jpo|jcxz|jecxz)(\s+)([0-9a-z]+)(\s*)/i
 	final_arr.each do |final_tuple|
 		if final_tuple.instr != nil
-			# A subroutine call
-			if call_match = final_tuple.instr.match(jump_re)
-				callq, space1, dest, space2 = call_match.captures
+			# A jump
+			if jump_match = final_tuple.instr.match(jump_re)
+				jump, space1, dest, space2 = jump_match.captures
 				dest = dest.strip
 				final_tuple.target = dest
 			else
@@ -354,7 +358,64 @@ if __FILE__ == $0
 		end
 	end	
 	
-	template = File.read('./template.html.erb')
+	# ---------------------------------Checking----------------------------------
+	final_arr.each do |final_tuple|
+		puts final_tuple
+	end
+
+	# Provide links to names declared in standard heaider files
+	std_link_set = Set.new
+	final_arr.each do |final_tuple|
+		# A super link that is not in current context
+		if final_tuple.target != nil && !instr_hash.include?(final_tuple.target)
+			std_link_set.add(final_tuple.target)
+		end
+	end
+	# Links to be printed at the end of HTML pages
+	links_target_arr = Array.new
+	is_found = false
+	all_instr_arr.each do |line|
+		# Empty line
+		if line.strip == ''
+			if is_found
+				link_struct = OpenStruct.new
+				link_struct.id = nil
+				link_struct.link = ''
+				links_target_arr.push(link_struct)
+			end
+			is_found = false
+		# Not an empty line
+		else
+			# Found a target link
+			if is_found
+				# Change to HTML escape
+				line = CGI::escapeHTML(line)
+				link_struct = OpenStruct.new
+				link_struct.id = nil
+				link_struct.link = line
+				links_target_arr.push(link_struct)
+			else
+				std_link_set.each do |std_link| 
+					if line.include?(std_link + ':')
+						# Change to HTML escape
+						line = CGI::escapeHTML(line)
+						link_struct = OpenStruct.new
+						link_struct.id = std_link
+						link_struct.link = line
+						links_target_arr.push(link_struct)
+						is_found = true
+						break
+					end
+				end
+			end
+		end
+	end
+
+	links_target_arr.each do |link|
+		puts link
+	end
+
+	template = File.read('./template_ac.html.erb')
 	result = ERB.new(template).result(binding)
 	html_filename = 'cross_indexing.html'
 	File.open(html_filename, 'w+') do |html_file|
@@ -362,8 +423,4 @@ if __FILE__ == $0
 		html_file.close
 	end
 
-	# ---------------------------------Checking----------------------------------
-	final_arr.each do |final_tuple|
-		puts final_tuple
-	end
 end
