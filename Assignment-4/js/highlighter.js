@@ -9,8 +9,6 @@ var dict = {'auto': 'c_auto', 'short': 'c_short', 'int': 'c_int', 'long': 'c_lon
 'break': 'c_break', 'default': 'c_default', 'sizeof': 'c_sizeof', 'return': 'c_return',
 'inline': 'c_inline', 'restrict': 'c_restrict'};
 
-var str = 'void main(){int a; int b; a = b}';
-
 function compare(a, b){
 	return b - a;
 }
@@ -62,6 +60,6 @@ function highlight(){
 	for(var i = 0; i < line_num; i++){
 		var line = spans[i].innerHTML;
 		spans[i].innerHTML = check_and_replace(line);
-		console.log(check_and_replace(line));
+		//console.log(check_and_replace(line));
 	}
 }
