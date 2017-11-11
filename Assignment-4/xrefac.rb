@@ -5,7 +5,7 @@ require 'set'
 require 'erb'
 
 # Check whether the given program counter is listed in debug_info
-def has_src(file_hash, pc)
+def ac_has_src(file_hash, pc)
 	file_hash.each do |filename, debug_line_arr|
 		debug_line_arr.each do |line_info|
 			if Integer(line_info.pc) == Integer('0x' + pc)
@@ -28,7 +28,7 @@ def has_src(file_hash, pc)
 end
 
 # Check whether a given row in the source file has corresponding assembly
-def has_instr(file_hash, filename, row)
+def ac_has_instr(file_hash, filename, row)
 	debug_line_arr = file_hash[filename]
 	debug_line_arr.each do |line_info|
 		if Integer(row) == Integer(line_info.row)
@@ -43,7 +43,7 @@ def has_instr(file_hash, filename, row)
 end
 
 # Check whether a given row in the source file has been added to final_arr
-def added_final_arr(final_arr, filename, row)
+def ac_added_final_arr(final_arr, filename, row)
 	final_arr.each do |final_tuple|
 		if final_tuple.filename == filename && Integer(row) == Integer(final_tuple.row)
 			return true
@@ -52,16 +52,9 @@ def added_final_arr(final_arr, filename, row)
 	return false
 end
 
-if __FILE__ == $0
-	# Check argument
-	if ARGV.length != 1
-		puts "Please input the name of the executable file."
-		exit
-	end
+# Assembly centric
+def xrefac(exe_name)
 
-	# Name of the executable file
-	exe_name = ARGV[0]
-	
 	# An array to store .debug_line info
 	debug_line_arr = Array.new
 	# Regex to match valid source file name
@@ -78,7 +71,7 @@ if __FILE__ == $0
 	is_fun = false
 	file_hash = Hash.new
 	func_set = Set.new
-	IO.popen(['dwarfdump' , exe_name]){
+	IO.popen(['dwarfdump', exe_name]){
 		|io| io.each {|line|
 		# Find all functions
 		if line.downcase.include? 'dw_tag_subprogram'
@@ -190,14 +183,6 @@ if __FILE__ == $0
 			end
 		end
 	end
-
-	puts '---------------------------- debug_line ----------------------------'
-	file_hash.each do |file, debug_line|
-		debug_line.each do |line_info|
-			puts line_info.pc + ' ' + line_info.row + ' ' + line_info.col + ' ' + ' ' + line_info.gray.to_s + ' ' + line_info.filename
-		end
-		puts "\n"
-	end
 	
 	# Parse the output of objdump
 	instr_hash = Hash.new
@@ -243,16 +228,17 @@ if __FILE__ == $0
 		}
 	}
 
-	puts '---------------------------- instructions ----------------------------'
-	instr_hash.each do |program_cnter, ass_code|
-		puts program_cnter + ' ' + ass_code
-	end
-	puts "\n"
 
 	# The final output index array. Its elements are tuples: (pc, instruction, file, line_num, flag)
 	final_arr = Array.new
+	found_main = false
+	main_loc = '#'
 	instr_hash.each do |program_cnter, ass_code|
+		puts ass_code
 		if func_set.include? (program_cnter)
+			if program_cnter == 'main'
+				found_main = true
+			end
 			final_tuple = OpenStruct.new
 			final_tuple.pc = program_cnter
 			final_tuple.instr = nil
@@ -261,16 +247,21 @@ if __FILE__ == $0
 			final_tuple.gray = nil
 			final_arr.push(final_tuple)
 		else
-			has_src_res, final_tuple = has_src(file_hash, program_cnter)
+			# To return main function location
+			if found_main
+				main_loc = program_cnter
+				found_main = false
+			end
+			ac_has_src_res, final_tuple = ac_has_src(file_hash, program_cnter)
 			final_tuple.instr = ass_code
 			# The instruction has corresponding source code
-			if has_src_res
+			if ac_has_src_res
 				# Insert previous source code which does not have assembly
 				prev_row = Integer(final_tuple.row) - 1
 				stack_arr = Array.new
-				while prev_row >= 1 && !has_instr(file_hash, final_tuple.filename, prev_row)
+				while prev_row >= 1 && !ac_has_instr(file_hash, final_tuple.filename, prev_row)
 					# Haven't add to final_arr
-					if !added_final_arr(final_arr, final_tuple.filename, prev_row)
+					if !ac_added_final_arr(final_arr, final_tuple.filename, prev_row)
 						new_final_tuple = OpenStruct.new
 						new_final_tuple.pc = nil
 						new_final_tuple.instr = nil
@@ -324,7 +315,6 @@ if __FILE__ == $0
 				for i in 1..2 * space_num + 4 * tab_num
 					line = '&nbsp;' + line
 				end
-				puts line
 				source_content_arr.push(line)
 			end
 			file.close
@@ -357,11 +347,6 @@ if __FILE__ == $0
 			final_tuple.target = nil
 		end
 	end	
-	
-	# ---------------------------------Checking----------------------------------
-	final_arr.each do |final_tuple|
-		puts final_tuple
-	end
 
 	# Provide links to names declared in standard heaider files
 	std_link_set = Set.new
@@ -411,16 +396,16 @@ if __FILE__ == $0
 		end
 	end
 
-	links_target_arr.each do |link|
-		puts link
-	end
-
 	template = File.read('./template_ac.html.erb')
 	result = ERB.new(template).result(binding)
-	html_filename = 'cross_indexing.html'
+	if !File.exist?(Dir.pwd + '/HTML')
+		Dir.mkdir(Dir.pwd + '/HTML')
+	end
+	html_filename = Dir.pwd + '/HTML/' + 'cross_indexing.html'
 	File.open(html_filename, 'w+') do |html_file|
 		html_file.write result
 		html_file.close
 	end
-
+	
+	return main_loc
 end
