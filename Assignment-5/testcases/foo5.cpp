@@ -16,12 +16,12 @@ void error(const char *text)
 
 void proc()
 {
-    Pointer<int> foo(new int(12));
+    Pointer<int> foo(new int(12));  // bootstrapping constructor 
 }
 
 int main(int argc, char **argv)
 {
-    proc();
+    proc();     // After finishing proc(), foo.~Pointer() will be called; but the object (new int(12)) has not been freed.
     error("Didn't blow up when leaking memory!");
 
     return 0;
