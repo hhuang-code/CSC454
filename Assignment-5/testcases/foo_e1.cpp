@@ -48,9 +48,10 @@ int main(int argc, char **argv)
     Pointer<Rect> foo(new Rect(3, 3)); // Pointer to a derived class
 
     // call base class function
-    cout << foo->getWidth() << " " << foo->getHeight() << endl;
+    cout << "base class function getWidth(): " << foo->getWidth() << endl
+    << "base class function getHeight(): " << foo->getHeight() << endl;
     // call derived class function
-	cout << foo->getArea() << endl;
+	cout << "derived class function getArea(): " << foo->getArea() << endl;
 
 	free(foo);
 	
