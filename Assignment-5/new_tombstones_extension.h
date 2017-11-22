@@ -153,19 +153,51 @@ public:
 	}
 
 	bool operator<(const Pointer<T>& p){
-		return ts->getPointee() + offset < p.getTombstone()->getPointee() + p.getOffset(); 
+		if (ts == NULL && p.getTombstone() == NULL){
+			return offset < p.getOffset();
+		} else if (ts != NULL && p.getTombstone() == NULL) {
+			return false;
+		} else if (ts == NULL && p.getTombstone() != NULL) {
+			return true;
+		} else {
+			return ts->getPointee() + offset < p.getTombstone()->getPointee() + p.getOffset();
+		} 
 	}
 
 	bool operator>(const Pointer<T>& p){
-		return ts->getPointee() + offset > p.getTombstone()->getPointee() + p.getOffset();
+		if (ts == NULL && p.getTombstone() == NULL){
+			return offset > p.getOffset();
+		} else if (ts != NULL && p.getTombstone() == NULL) {	
+			return true;
+		} else if (ts == NULL && p.getTombstone() != NULL){
+			return false;
+		} else {
+			return ts->getPointee() + offset > p.getTombstone()->getPointee() + p.getOffset();
+		}
 	}
 
 	bool operator<=(const Pointer<T>& p){
-		return ts->getPointee() + offset <= p.getTombstone()->getPointee() + p.getOffset();
+		if (ts == NULL && p.getTombstone() == NULL){
+			return offset <= p.getOffset();
+		} else if (ts != NULL && p.getTombstone() == NULL) {
+			return false;
+		} else if (ts == NULL && p.getTombstone() != NULL){
+			return true;
+		} else {
+			return ts->getPointee() + offset <= p.getTombstone()->getPointee() + p.getOffset();
+		}
 	}
 
 	bool operator>=(const Pointer<T>& p){
-		return ts->getPointee() + offset >= p.getTombstone()->getPointee() + p.getOffset();
+		if (ts == NULL && p.getTombstone() == NULL){
+			return offset >= p.getOffset();
+		} else if (ts != NULL && p.getTombstone() == NULL) {   
+			return true;
+		} else if (ts == NULL && p.getTombstone() != NULL){
+			return false;
+		} else {
+			return ts->getPointee() + offset >= p.getTombstone()->getPointee() + p.getOffset();
+		}
 	}
 	
 	// setters and getters
