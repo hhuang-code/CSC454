@@ -17,14 +17,14 @@ void error(const char *text)
 int main(int argc, char **argv)
 {
     Pointer<int> foo(new int(12));
-    Pointer<int> tmp((int*)NULL);
-    Pointer<int> bar = tmp;
+    Pointer<int> tmp((int*)NULL);	// call bootstrapping constructor
+    Pointer<int> bar = tmp;	// call copy constructor
 
     if (foo == 0)
 	error("Foo shouldn't be null!");
     if (bar != 0)
 	error("Bar should be null!");
-    bar = new int(12);
+    bar = new int(12);	// call bootstrapping constructor
     if (foo == bar)
 	error("Foo and bar are distinct pointers!");
     if (*foo != *bar)
