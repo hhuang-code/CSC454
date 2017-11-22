@@ -16,8 +16,8 @@ void error(const char *text)
 
 void fun(Pointer<int> &foo, int n)
 {
-    Pointer<int> bar(foo);
-
+    Pointer<int> bar(foo);	// copy constructor
+		
     if (n == 0)
 	*bar = 100;
     else
@@ -27,14 +27,14 @@ void fun(Pointer<int> &foo, int n)
 	{
 	    if (*foo != 100)
 		error("Linking of pointers not correct!");
-	    free(foo);
+	    free(foo);	// many bars point to the same object with foo
 	}
     }
 }
 
 int main(int argc, char **argv)
 {
-    Pointer<int> foo(new int(0));
+    Pointer<int> foo(new int(0));	// bootstrapping constructor
     fun(foo, 10);
     Pointer<int> bar(foo);
     error("Didn't complain about use of dangling pointer foo!");
