@@ -55,7 +55,6 @@ public:
 	
 	// bootstrapping constructor
     Pointer<T>(T* p) {
-		cout << "bootstrapping constructor" << endl;
 		if (p != NULL) {
         	ts = new Tombstone<T>(1, p);
 			offset = 0;
