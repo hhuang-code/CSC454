@@ -24,8 +24,8 @@ twoints;
 
 int main(int argc, char **argv)
 {
-    Pointer<int> foo(new int(12));
-    Pointer<twoints> bar(new twoints(12,12));
+    Pointer<int> foo(new int(12));	// bootstrapping constructor
+    Pointer<twoints> bar(new twoints(12,12));	// bootstrapping constructor
 
     if (*foo != bar->a || *foo != bar->b)
 	error("Foo, bar->a, and bar->b should all be 12");
