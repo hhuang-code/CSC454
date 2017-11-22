@@ -67,6 +67,12 @@ int main(int argc, char **argv)
     // bat is small than fun, print: true (1)
     cout << "fun - 1 < fun true or false? " << (bat < fun) << endl;
 
+    cout << endl;
+
+    // Pointer subtraction
+    cout << "Test pointer subtraction:" << endl;
+    cout << "(fun - 1) - fun: " <<  bat - fun << endl;
+
     bat.~Pointer();
     bar.~Pointer();
     fun.~Pointer();
