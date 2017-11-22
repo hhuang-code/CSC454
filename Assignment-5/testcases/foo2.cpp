@@ -16,9 +16,9 @@ void Error(const char *text)
 
 int main(int argc, char **argv)
 {
-    Pointer<int> foo;
-    foo = new int(12);
-    Pointer<int> bar(foo);
+    Pointer<int> foo;	// call default constructor
+    foo = new int(12);	// call bootstrapping constructor
+    Pointer<int> bar(foo);	// call copy constructor
 
     if (bar == 0)
 	Error("Bar should not be null!");
@@ -32,8 +32,8 @@ int main(int argc, char **argv)
     if (*bar != 15)
 	Error("Bar should still match foo!");
 
-    free(foo);
-    free(bar);
+   	free(foo);
+    free(bar);	// To avoid dangling pointer: before calling free(foo), call bar.~Pointer(); and then comment out free(bar) 
     Error("Attempt to double-delete pointer not flagged!");
 
     return 0;
