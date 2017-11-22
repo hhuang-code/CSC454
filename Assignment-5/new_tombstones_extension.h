@@ -98,8 +98,10 @@ public:
 				}
 			}
 			if(p.getTombstone() != NULL) {
-            	ts = p.getTombstone() + p.getOffset();
-				offset = 0;
+            	//ts = p.getTombstone() + p.getOffset();
+				//offset = 0;
+                ts = p.getTombstone();
+                offset = p.getOffset();
             	ts->increaseCnt();
 			}else {
 				ts = NULL;
@@ -142,7 +144,7 @@ public:
 
 	Pointer<T> operator+(const int n) {
 		Pointer<T> np(*this);
-		np.increaseOffset(n);
+        np.increaseOffset(n);
 		return np;
 	}
 
