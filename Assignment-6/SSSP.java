@@ -14,12 +14,14 @@
     code written in 2007.
  */
 
+package csc254;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import javax.swing.*;
 
-import Coordinator.KilledException;
+import csc254.Coordinator.KilledException;
 
 import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
@@ -220,12 +222,8 @@ public class SSSP {
                 if (numThreads == 0) {
                     s.DijkstraSolve();
                 } else {
-                    //s.DeltaSolve();
-                	
-                	CyclicBarrier barrierOne = new CyclicBarrier(numThreads);
-                	CyclicBarrier barrierTwo = new CyclicBarrier(numThreads);
-                	
-                	s.DeltaSolve(numThreads, barrierOne, barrierTwo);
+                	CyclicBarrier barrier = new CyclicBarrier(numThreads);
+                    s.DeltaSolve(numThreads, barrier);
                 }
             } catch(Coordinator.KilledException e) { }
             long endTime = new Date().getTime();
@@ -265,7 +263,8 @@ class Worker extends Thread {
             if (dijkstra) {
                 s.DijkstraSolve();
             } else {
-                s._DeltaSolve_();
+            	CyclicBarrier barrier = new CyclicBarrier(1);
+                s.DeltaSolve(1, barrier);
             }
             c.unregister();
         } catch(Coordinator.KilledException e) { }
@@ -591,6 +590,10 @@ class Surface {
                 }
             }
         }
+        //  print results
+        for (Vertex vt : vertices) {
+        	System.out.println(vt.distToSource);
+        }
     }
 
     // *************************
@@ -606,12 +609,12 @@ class Surface {
     //
     class Request {
         private Vertex v;
-		private Edge e;
+        private Edge e;
 
         // To relax a request is to consider whether the e might provide
         // v with a better path back to the source.
         //
-        public void relax() throws KilledException {
+        public void relax(Vector<LinkedHashSet<Vertex>> buckets) throws KilledException {
             Vertex o = e.other(v);
             long altDist = o.distToSource + e.weight;
             if (altDist < v.distToSource) {
@@ -632,8 +635,8 @@ class Surface {
         }
         
         public Vertex getV() {
-			return v;
-		}
+        	return v;
+        }
     }
 
     // Return list of requests whose connecting edge weight is <= or > than delta.
@@ -650,145 +653,88 @@ class Surface {
         }
         return rtn;
     }
-
-    // Main solver routine.
-    //
-    public void _DeltaSolve_() throws KilledException {
-        numBuckets = 2 * degree;
-        delta = maxCoord / degree;
-        // All buckets, together, cover a range of 2 * maxCoord,
-        // which is larger than the weight of any edge, so a relaxation
-        // will never wrap all the way around the array.
-        buckets = new ArrayList<LinkedHashSet<Vertex>>(numBuckets);
-        for (int i = 0; i < numBuckets; ++i) {
-            buckets.add(new LinkedHashSet<Vertex>());
-        }
-        buckets.get(0).add(vertices[0]);
-        int i = 0;
-        for (;;) {
-            LinkedList<Vertex> removed = new LinkedList<Vertex>();
-            LinkedList<Request> requests;
-            while (buckets.get(i).size() > 0) {
-                requests = findRequests(buckets.get(i), true);  // light relaxations
-                // Move all vertices from bucket i to removed list.
-                removed.addAll(buckets.get(i));
-                buckets.set(i, new LinkedHashSet<Vertex>());
-                for (Request req : requests) {
-                    req.relax();
-                }
-            }
-            // Now bucket i is empty.
-            requests = findRequests(removed, false);    // heavy relaxations
-            for (Request req : requests) {
-                req.relax();
-            }
-            // Find next nonempty bucket.
-            int j = i;
-            do {
-                j = (j + 1) % numBuckets;
-            } while (j != i && buckets.get(j).size() == 0);
-            if (i == j) {
-                // Cycled all the way around; we're done
-                break;  // for (;;) loop
-            }
-            i = j;
-        }
-    }
     
-    // map vertex to thread
-    HashMap<Vertex, Long> vertex2ThreadMap = new HashMap<Vertex, Long>();
+    //  map vertex to thread
+    HashMap<Vertex, Long> v2t = new HashMap<Vertex, Long>();
     
-    // map thread to integer 0 ~ (t-1)
-    HashMap<Long, Integer> thread2IntMap = new HashMap<Long, Integer>();
+    //  map thread to integer
+    HashMap<Long, Integer> t2i = new HashMap<Long, Integer>();
     
-    // bool list indicating whether a thread sends a request
-    Vector<Boolean> isSendReqVector = new Vector<Boolean>();
-	
-    // row for send, column for receive
-    ArrayList<ArrayList<ConcurrentLinkedQueue<Request>>> msgQueueMat = 
-    		new ArrayList<ArrayList<ConcurrentLinkedQueue<Request>>>();
+    //  check this thread has sent
+    Vector<Boolean> isSend = new Vector<Boolean>();
+    
+    //  check the thread is done
+    Vector<Boolean> isEmpty = new Vector<Boolean>();
+    
+    //  message queue
+    ArrayList<ConcurrentLinkedQueue<Request>> msgQ = new ArrayList<ConcurrentLinkedQueue<Request>>();
     
     class ThreadWorker extends Thread {
-    	
     	private int numBuckets;
-        private CyclicBarrier barrierOne;
-        private CyclicBarrier barrierTwo;
-        private ArrayList<LinkedHashSet<Vertex>> buckets;
-        private int i;
-        
-        public ThreadWorker (int numBuckets, int delta, Vertex vertices[], CyclicBarrier barrierOne, CyclicBarrier barrierTwo) {
-            this.numBuckets = numBuckets;
-            this.barrierOne = barrierOne;
-            this.barrierTwo = barrierTwo;
-            this.buckets = new ArrayList<LinkedHashSet<Vertex>>(numBuckets);
-            this.i = 0;
-            
-        	for (int i = 0; i < numBuckets; ++i) {
-                buckets.add(new LinkedHashSet<Vertex>());
-            }
-        	
-        	buckets.get(0).add(vertices[0]);
-        }
-        
-        @Override
-        public void run() {
-        	
-			for (;;) {
-			    LinkedList<Vertex> removed = new LinkedList<Vertex>();
-			    LinkedList<Request> requests;
-			    while (true) {
-				    while (buckets.get(i).size() > 0) {
-				        requests = findRequests(buckets.get(i), true);  // light relaxations
-				        			        
-				        // Move all vertices from bucket i to removed list.
-				        removed.addAll(buckets.get(i));
-				        buckets.set(i, new LinkedHashSet<Vertex>());
-				        for (Request req : requests) {
-							try {
-								if (vertex2ThreadMap.get(req.getV()) == Thread.currentThread().getId()) {
-									req.relax();
-								} else {
-									// add req to send queue
-						    		Long srcThreadId = Thread.currentThread().getId();	// get source thread id
-						    		Long destThreadId = vertex2ThreadMap.get(req.getV()); // get dest thread id
-						    		int srcThreadInt = thread2IntMap.get(srcThreadId);	// map thread id to integer
-						    		int destThreadInt = thread2IntMap.get(destThreadId);
-						    		msgQueueMat.get(srcThreadInt).get(destThreadInt).add(req);
-						    		// update request send flag array
-						    		isSendReqVector.set(srcThreadInt, true);
-								}
-							} catch (KilledException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-				        }
-				    }
-				    
-				    // Now bucket i is empty.
-				    requests = findRequests(removed, false);    // heavy relaxations
-				    for (Request req : requests) {
-				        try {
-				        	if (vertex2ThreadMap.get(req.getV()) == Thread.currentThread().getId()) {
-							req.relax();
-				        	} else {
-				        		// add req to send queue
-					    		Long srcThreadId = Thread.currentThread().getId();	// get source thread id
-					    		Long destThreadId = vertex2ThreadMap.get(req.getV()); // get dest thread id
-					    		int srcThreadInt = thread2IntMap.get(srcThreadId);	// map thread id to integer
-					    		int destThreadInt = thread2IntMap.get(destThreadId);
-					    		msgQueueMat.get(srcThreadInt).get(destThreadInt).add(req);
-					    		// update request send flag array
-					    		isSendReqVector.set(srcThreadInt, true);
-				        	}
-						} catch (KilledException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-				    }
-				    
-				    // add the first cyclic barrier
-				    try {
-						barrierOne.await();
+    	private CyclicBarrier barrier;
+    	private Vector<LinkedHashSet<Vertex>> buckets;
+    	private int i;
+    	
+    	public ThreadWorker(int numBuckets, int delta, CyclicBarrier barrier) {
+    		this.numBuckets = numBuckets;
+    		this.barrier = barrier;
+    		this.buckets = new Vector<LinkedHashSet<Vertex>>(numBuckets);
+    		this.i = 0;
+    		for (int i = 0; i < numBuckets; i++)
+    			buckets.add(new LinkedHashSet<Vertex>());
+    		
+    		buckets.get(0).add(vertices[0]);
+    	}
+    	
+    	
+    	public void run() {
+    		while (true) {
+    			
+    			while (true) {
+
+    				LinkedList<Vertex> removed = new LinkedList<Vertex>();
+    				LinkedList<Request> requests;
+    				Boolean isSendFlag = false;
+    				
+    				isEmpty.set(t2i.get(Thread.currentThread().getId()), false);
+    				
+    				//  deal with light 
+    				while (buckets.get(i).size() > 0) {
+    					requests = findRequests(buckets.get(i), true);
+    					
+    					removed.addAll(buckets.get(i));
+    					buckets.set(i, new LinkedHashSet<Vertex>());
+    					
+    					for (Request rq : requests) {
+    						if (v2t.get(rq.getV()) == Thread.currentThread().getId()) {
+									try {
+										rq.relax(buckets);
+									} catch (Coordinator.KilledException e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}
+    						} else {
+    							long srcThreadId = Thread.currentThread().getId();
+    							long dstThreadId = v2t.get(rq.getV());
+    							int srcThreadInt = t2i.get(srcThreadId);
+    							int dstThreadInt = t2i.get(dstThreadId);
+    							
+    							msgQ.get(dstThreadInt).add(rq);
+    							
+    							isSend.set(srcThreadInt, true);
+    							isSendFlag = true;
+    						}
+    					}
+    				}
+    					
+					//  set flag
+					if (!isSendFlag) {
+						isSend.set(t2i.get(Thread.currentThread().getId()), false);
+					}
+    				
+					//  1st barrier
+					try {
+						barrier.await();
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -796,34 +742,121 @@ class Surface {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-				    
-				    // receive request from msg queue
-				    int numThreads = msgQueueMat.size();
-				    int curThreadInt = thread2IntMap.get(Thread.currentThread().getId());
-				    for (int i = 0; i < numThreads; i++) {	// for requests from every other threads
-				    	while (!msgQueueMat.get(i).get(curThreadInt).isEmpty()) {	// for requests from the same thread
-				    		try {
-				    			Request req = msgQueueMat.get(i).get(curThreadInt).poll();
-								req.relax();
+					
+					//  deal received request
+					int curThreadInt = t2i.get(Thread.currentThread().getId());
+					while (!msgQ.get(curThreadInt).isEmpty()) {
+						Request rq = msgQ.get(curThreadInt).poll();
+						try {
+							rq.relax(buckets);
+						} catch (KilledException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+					
+					//  2nd barrier
+					try {
+						barrier.await();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (BrokenBarrierException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					//  find heavy
+					requests = findRequests(removed, false);
+					for (Request rq : requests) {
+						if (v2t.get(rq.getV()) == Thread.currentThread().getId()) {
+							try {
+								rq.relax(buckets);
 							} catch (KilledException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-			            }
-				    }
-				    
-				    // decide whether other threads send requests
-				    int len = isSendReqVector.size();
-				    isSendReqVector.set(curThreadInt, isSendReqVector.get(len - 1));
-				    Boolean isSendFlag = false;
-				    for (int i = 0; i < len - 1; i++) {
-				    	isSendFlag &= isSendReqVector.get(i);
-				    }
-				    
-				    if (!isSendFlag) {
-					    // add the second cyclic barrier
-					    try {
-							barrierTwo.await();
+						} else {
+							long srcThreadId = Thread.currentThread().getId();
+							long dstThreadId = v2t.get(rq.getV());
+							int srcThreadInt = t2i.get(srcThreadId);
+							int dstThreadInt = t2i.get(dstThreadId);
+							msgQ.get(dstThreadInt).add(rq);
+							
+							isSend.set(srcThreadInt, true);
+							isSendFlag = true;
+						}
+					}
+					
+					//  set flag
+					if (!isSendFlag) {
+						isSend.set(t2i.get(Thread.currentThread().getId()), false);
+					}
+					
+					//  3rd barrier
+					try {
+						barrier.await();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (BrokenBarrierException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					//  deal heavy
+					while (!msgQ.get(curThreadInt).isEmpty()) {
+						Request rq = msgQ.get(curThreadInt).poll();
+						try {
+							rq.relax(buckets);
+						} catch (KilledException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}				
+					
+					//  4th barrier
+					try {
+						barrier.await();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (BrokenBarrierException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					int len = isSend.size();
+					boolean f = false;
+					for (int i = 0; i < len; i++) {
+						f |= isSend.get(i);
+					}
+					
+					if (buckets.get(i).size() == 0) {
+						isEmpty.set(t2i.get(Thread.currentThread().getId()), true);
+					}
+					
+				//  5th barrier
+					try {
+						barrier.await();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (BrokenBarrierException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					f = true;
+					for (int i = 0; i < len; i++) {
+						f &= isEmpty.get(t2i.get(Thread.currentThread().getId()));
+					}
+					
+					
+					if (f) {
+						try {
+							System.out.println("last: " + Thread.currentThread().getId());
+							barrier.await();
 						} catch (InterruptedException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -831,120 +864,108 @@ class Surface {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
-					    
-					    // reset send flag in isSendReqVector
-					    isSendReqVector.set(curThreadInt, false);
-					    
-				    	break;
-				    }
-			    }	// end while (true)
-			    
-			    // Find next nonempty bucket.
-			    int j = i;
-			    do {
-			        j = (j + 1) % numBuckets;
-			    } while (j != i && buckets.get(j).size() == 0);
-			    if (i == j) {
-			        // Cycled all the way around; we're done
-			        break;  // for (;;) loop
-			    }
-			    i = j;
-			}
-        }
-   }
+						break;
+					}
+    			}
+    			
+    			i++;
+    			
+    			System.out.println(Thread.currentThread().getId() + " i: " + i);
+    			try {
+					barrier.await();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (BrokenBarrierException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+    			if (i == numBuckets) {
+    				
+					break;
+    			}
+    			
+    			
+    			
+    			
+    			/*boolean qEmpty = true;
+    			for (int i = 0; i < numBuckets; i++) {
+    				if (buckets.get(i).isEmpty() == false)
+    					qEmpty = false;
+    			}
+    			
+    			int curThreadInt = t2i.get(Thread.currentThread().getId());
+    			if (qEmpty && msgQ.get(curThreadInt).isEmpty())
+    				break;*/
+    		}
+    	}
+    }
     
-    public void DeltaSolve(int numThreads, CyclicBarrier barrierOne, CyclicBarrier barrierTwo) throws KilledException {
-    	
-    	numBuckets = 2 * degree;
-        delta = maxCoord / degree;
-        
-        // initialize request send flag array
-        for (int i = 0; i < numThreads + 1; i++) {
-        	isSendReqVector.add(false);
-        }
-        
-        // initialize message queue
-        for (int i = 0; i < numThreads; i++) {
-        	msgQueueMat.add(new ArrayList<ConcurrentLinkedQueue<Request>>());
-        	for (int j = 0; j < numThreads; j++) {
-        		msgQueueMat.get(i).add(new ConcurrentLinkedQueue<Request>());
-        	}
-        }
-        
-    	// thread pool
-    	ArrayList<ThreadWorker> threadPool= new ArrayList<ThreadWorker>();
-    	
-    	// initialize threads
-    	for (int i = 0; i < numThreads; i++) {
-    		threadPool.add(new ThreadWorker(numBuckets, delta, vertices, barrierOne, barrierTwo));
-    	}
-    		
-    	// initialize hashmap (vertex to thread)
-    	for (int i = 0; i < n; i++) {
-    		vertex2ThreadMap.put(vertices[i], threadPool.get(i % numThreads).getId());
-    	}
-    	
-     	// initialize hashmap (thread to integer)
-    	for (int i = 0; i < n; i++) {
-    		thread2IntMap.put(threadPool.get(i).getId(), i);
-    	}   	
-    	
-    	// start thread
-    	for (int i = 0; i < numThreads; i++) {
-    		threadPool.get(i).start();
-    	}
-    	
-    	/*for (Vertex v: vertex2ThreadMap.keySet()) {
-            Long threadId = vertex2ThreadMap.get(v);
-            System.out.println(v.xCoord + " " + v.yCoord + " " + threadId);  
-        } */
-    	
-    	
-/*        numBuckets = 2 * degree;
+    // Main solver routine.
+    //
+    public void DeltaSolve(int numThreads, CyclicBarrier barrier) throws KilledException {
+        numBuckets = 2 * degree;
         delta = maxCoord / degree;
         // All buckets, together, cover a range of 2 * maxCoord,
         // which is larger than the weight of any edge, so a relaxation
         // will never wrap all the way around the array.
-        buckets = new ArrayList<LinkedHashSet<Vertex>>(numBuckets);
-        for (int i = 0; i < numBuckets; ++i) {
-            buckets.add(new LinkedHashSet<Vertex>());
+        
+        
+        //  set isSend to false;
+        for (int i = 0; i < numThreads; i++) {
+        	isSend.add(false);
         }
-        buckets.get(0).add(vertices[0]);
-        int i = 0;
-        for (;;) {
-            LinkedList<Vertex> removed = new LinkedList<Vertex>();
-            LinkedList<Request> requests;
-            while (buckets.get(i).size() > 0) {
-                requests = findRequests(buckets.get(i), true);  // light relaxations
-                // Move all vertices from bucket i to removed list.
-                removed.addAll(buckets.get(i));
-                buckets.set(i, new LinkedHashSet<Vertex>());
-                for (Request req : requests) {
-                    req.relax();
-                }
-            }
-            // Now bucket i is empty.
-            requests = findRequests(removed, false);    // heavy relaxations
-            for (Request req : requests) {
-                req.relax();
-            }
-            // Find next nonempty bucket.
-            int j = i;
-            do {
-                j = (j + 1) % numBuckets;
-            } while (j != i && buckets.get(j).size() == 0);
-            if (i == j) {
-                // Cycled all the way around; we're done
-                break;  // for (;;) loop
-            }
-            i = j;
-        }*/
+        
+        //  set isDone to false
+        for (int i = 0; i < numThreads; i++) {
+        	isEmpty.add(false);
+        }
+        
+        //  initialize message queue
+        for (int i = 0; i < numThreads; i++) {
+        	msgQ.add(new ConcurrentLinkedQueue<Request>());
+        }
+        //  thread pool
+        Vector<ThreadWorker> threadPool = new Vector<ThreadWorker>();
+        for (int i = 0; i < numThreads; i++) {
+        	threadPool.add(new ThreadWorker(numBuckets, delta, barrier));
+        }
+        
+        //  assign vertex to thread
+        for (int i = 0; i < n; i++) {
+        	v2t.put(vertices[i], threadPool.get(i % numThreads).getId());
+        }
+        
+        //  assign thread to integer
+        for (int i = 0; i < numThreads; i++) {
+        	t2i.put(threadPool.get(i).getId(), i);
+        }
+        
+        //  start thread
+        for (int i = 0; i < numThreads; i++) {
+        	threadPool.get(i).start();
+        }
+        
+        //  main thread waits all worker threads
+        for (int i = 0; i < numThreads; i++) {
+        	try {
+				threadPool.get(i).join();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+        
+        //  print results
+        for (Vertex vt : vertices) {
+        	System.out.println(vt.distToSource);
+        }
     }
 
-    
     // End of Delta stepping.
     // *************************
-
+    
+    
     // Constructor
     //
     public Surface(int N, long SD, double G, int D, Coordinator C) {
