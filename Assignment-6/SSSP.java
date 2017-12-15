@@ -1,10 +1,14 @@
 /*
     SSSP.java
+
     Single-source shortest path finder.
+
     Includes a (sequential) implementation of Dijkstra's algorithm,
     which is O((m + n) log n).
+
     Also includes a (sequential) implementation of Delta stepping.
     You need to create a parallel version of this.
+
     Michael L. Scott, November 2017; based heavily on earlier
     incarnations of several programming projects, and on Delaunay mesh
     code written in 2007.
@@ -556,8 +560,8 @@ class Surface {
     // *************************
     // Find shortest paths via Dijkstra's algorithm.
     //
-/*
-    public void DijkstraSolve() throws Coordinator.KilledException {
+    /*
+	public void DijkstraSolve() throws Coordinator.KilledException {
         PriorityQueue<Vertex> pq = new PriorityQueue<Vertex>(n, new DistanceComparator());
         Vertex v = vertices[0];
         for (Edge e : v.neighbors) {
@@ -589,9 +593,9 @@ class Surface {
         }
         //  print results
     }
-*/
-	
-    class WeightedVertex implements Comparable<WeightedVertex> {
+	*/
+
+	class WeightedVertex implements Comparable<WeightedVertex> {
         Vertex v;
         long weight;
 
@@ -635,7 +639,7 @@ class Surface {
             }
         }
     }
-    
+
     // *************************
     // Find shortest paths via Delta stepping.
 
@@ -694,50 +698,59 @@ class Surface {
         return rtn;
     }
     
-    //  map vertex to thread
+    // map each vertex to a thread
     HashMap<Vertex, Long> v2t = new HashMap<Vertex, Long>();
     
-    //  map thread to integer
+    // map each thread to an integer
     HashMap<Long, Integer> t2i = new HashMap<Long, Integer>();
     
-    //  check the current bucket is done
+    // each element in this array corresponds to a thread, used to check whether the i-th bucket of this thread is empty
     ArrayList<Boolean> isEmpty = new ArrayList<Boolean>();
     
-    //  check the whole buckets is empty
+    // each element in this array corresponds to a thread, used to check whether all buckets of this thread is empty
     ArrayList<Boolean> isDone = new ArrayList<Boolean>();
     
-    //  message queue
+    // message queue array, each thread has a queue to receive message 
     ArrayList<ConcurrentLinkedQueue<Request>> msgQ = new ArrayList<ConcurrentLinkedQueue<Request>>();
     
+    // working thread class
     class ThreadWorker extends Thread {
     	private int numBuckets;
     	private CyclicBarrier barrier;
     	private Vector<LinkedHashSet<Vertex>> buckets;
     	private int i;
     	
-    	public ThreadWorker(int numBuckets, int delta, CyclicBarrier barrier) {
+        // constructor
+    	public ThreadWorker(int numBuckets, CyclicBarrier barrier) {
     		this.numBuckets = numBuckets;
     		this.barrier = barrier;
     		this.buckets = new Vector<LinkedHashSet<Vertex>>(numBuckets);
     		this.i = 0;
+
+            // initially, all buckets are empty
     		for (int i = 0; i < numBuckets; i++)
     			buckets.add(new LinkedHashSet<Vertex>());
+
+            // add the source vertex to the first bucket
             buckets.get(0).add(vertices[0]);
     	}
     	
     	
     	public void run() {
-
             
+            // when all buckets are empty, break out
     		while (true) {
-    			
+
+    			// when i-th bucket is empty, break out
     			while (true) {
 
     				LinkedList<Vertex> removed = new LinkedList<Vertex>();
     				LinkedList<Request> requests;
     				    				
-    				//  deal with light 
+    				// deal with i-th bucket until it is empty
+                    // find and send light requests (if it belongs to other threads) 
     				while (buckets.get(i).size() > 0) {
+
     					requests = findRequests(buckets.get(i), true);
     					
     					removed.addAll(buckets.get(i));
@@ -752,6 +765,7 @@ class Surface {
 										e.printStackTrace();
 									}
     						} else {
+                                // set light request
     							long srcThreadId = Thread.currentThread().getId();
     							long dstThreadId = v2t.get(rq.getV());
     							int srcThreadInt = t2i.get(srcThreadId);
@@ -760,16 +774,12 @@ class Surface {
     							msgQ.get(dstThreadInt).add(rq);   							
     						}
     					}
-    				}    					
+    				}    				
 
-
-									
-					
-					//  deal received request
+					// map current thread id to an integer
 					int curThreadInt = t2i.get(Thread.currentThread().getId());
 
-
-					//  2nd barrier
+					//  first barrier
                     try {
                         barrier.await();
                     } catch (InterruptedException e) {
@@ -780,7 +790,7 @@ class Surface {
                         e.printStackTrace();
                     }
 
-					//  find heavy
+					//  find and sent heavy requests (if it belongs to other threads)
 					requests = findRequests(removed, false);
 					for (Request rq : requests) {
 						if (v2t.get(rq.getV()) == Thread.currentThread().getId()) {
@@ -799,10 +809,7 @@ class Surface {
 						}
 					}
 					
-					
-
-					
-					//  deal heavy
+					// deal with received message
 					while (!msgQ.get(curThreadInt).isEmpty()) {
 						Request rq = msgQ.get(curThreadInt).poll();
 						try {
@@ -812,19 +819,15 @@ class Surface {
 							e.printStackTrace();
 						}
 					}				
-	
-
 					
-					
+                    // if the current i-th bucket is empty, set the corresponding element in isEmpty array to true, otherwise, set to false
 					if (buckets.get(i).size() == 0) {
 						isEmpty.set(t2i.get(Thread.currentThread().getId()), true);
 					} else {
 						isEmpty.set(t2i.get(Thread.currentThread().getId()), false);
 					}
 					
-					
-					
-				//  5th barrier
+				    // 2nd barrier
                     try {
                         barrier.await();
                     } catch (InterruptedException e) {
@@ -835,6 +838,7 @@ class Surface {
                         e.printStackTrace();
                     }
 					
+                    // if all elements in isEmpty array is true, it means all i-th bucket of each thread is empty. Go to the next bucket
 					boolean f = true;
 					for (int i = 0; i < isEmpty.size(); i++) {
 						f &= isEmpty.get(i);
@@ -843,25 +847,26 @@ class Surface {
 					if (f)
 						break;
     			}
-    			//  System.out.println(Thread.currentThread().getId() + "\t" + i);
+
+    			// move to the next bucket
     			i = (i + 1) % numBuckets;
     			
-
-    			    			
-    			
-    			
+                // for current thread, check if all buckets of this thread is empty
+                // if yes, set qEmpty to true, otherwise, set it to false
     			boolean qEmpty = true;
     			for (int i = 0; i < numBuckets; i++) {
     				if (buckets.get(i).isEmpty() == false)
     					qEmpty = false;
     			}
     			
+                // if all buckets of this thread is empty, set corresponding element in isDone array to true, otherwise, set to false
     			if (qEmpty) {
     				isDone.set(t2i.get(Thread.currentThread().getId()), true);
     			} else {
     				isDone.set(t2i.get(Thread.currentThread().getId()), false);
     			}
     			
+                // third barrier
     			try {
 					barrier.await();
 				} catch (InterruptedException e) {
@@ -872,6 +877,7 @@ class Surface {
 					e.printStackTrace();
 				}
     			
+                // if all buckets of all threads is empty, finish; otherwise, continue the next loop
     			boolean f = true;
     			for (int i = 0; i < isDone.size(); i++) {
     				f &= isDone.get(i);
@@ -893,41 +899,43 @@ class Surface {
         // will never wrap all the way around the array.
               
         
-        //  set isDone to false
+        // set all elements in isEmpty array to true
         for (int i = 0; i < numThreads; i++) {
         	isEmpty.add(true);
         }
         
+        // set all elements in isDone array to true
         for (int i = 0; i < numThreads; i++) {
         	isDone.add(true);
         }
         
-        //  initialize message queue
+        // initialize message queue
         for (int i = 0; i < numThreads; i++) {
         	msgQ.add(new ConcurrentLinkedQueue<Request>());
         }
-        //  thread pool
+
+        // create threads and add them tothread pool
         Vector<ThreadWorker> threadPool = new Vector<ThreadWorker>();
         for (int i = 0; i < numThreads; i++) {
-        	threadPool.add(new ThreadWorker(numBuckets, delta, barrier));
+        	threadPool.add(new ThreadWorker(numBuckets, barrier));
         }
         
-        //  assign vertex to thread
+        // assign each vertex to a thread
         for (int i = 0; i < n; i++) {
         	v2t.put(vertices[i], threadPool.get(i % numThreads).getId());
         }
         
-        //  assign thread to integer
+        // assign each thread to an integer
         for (int i = 0; i < numThreads; i++) {
         	t2i.put(threadPool.get(i).getId(), i);
         }
-        long lStartTime = System.currentTimeMillis();
-        //  start thread
+
+        // start all threads
         for (int i = 0; i < numThreads; i++) {
         	threadPool.get(i).start();
         }
         
-        //  main thread waits all worker threads
+        // let main thread waits all worker threads
         for (int i = 0; i < numThreads; i++) {
         	try {
 				threadPool.get(i).join();
@@ -936,15 +944,6 @@ class Surface {
 				e.printStackTrace();
 			}
         }
-        
-    
-        
-        long lEndTime = System.currentTimeMillis();
-        
-        long output = lEndTime - lStartTime;
-        
-        System.out.println("Elapsed time in milliseconds: " + output);
-//        //  print results
     }
 
     // End of Delta stepping.
