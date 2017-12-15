@@ -556,6 +556,7 @@ class Surface {
     // *************************
     // Find shortest paths via Dijkstra's algorithm.
     //
+/*
     public void DijkstraSolve() throws Coordinator.KilledException {
         PriorityQueue<Vertex> pq = new PriorityQueue<Vertex>(n, new DistanceComparator());
         Vertex v = vertices[0];
@@ -588,6 +589,53 @@ class Surface {
         }
         //  print results
     }
+*/
+	
+    class WeightedVertex implements Comparable<WeightedVertex> {
+        Vertex v;
+        long weight;
+
+        public WeightedVertex(Vertex n) {
+            v = n;
+            weight = v.distToSource;
+        }
+
+        public int compareTo(WeightedVertex other) {
+            if (weight < other.weight) return -1;
+            if (weight == other.weight) return 0;
+            return 1;
+        }
+    }
+
+    public void DijkstraSolve() throws Coordinator.KilledException {
+        PriorityQueue<WeightedVertex> pq =
+            new PriorityQueue<WeightedVertex>((n * 12) / 10);
+            // Leave some room for extra umremoved entries.
+        vertices[0].distToSource = 0;
+        // All other vertices still have maximal distToSource, as set by constructor.
+        pq.add(new WeightedVertex(vertices[0]));
+        while (!pq.isEmpty()) {
+            WeightedVertex wv = pq.poll();
+            Vertex v = wv.v;
+            if (v.predecessor != null) {
+                v.predecessor.select();
+            }
+            if (wv.weight != v.distToSource) {
+                // This is a left-over pq entry.
+                continue;
+            }
+            for (Edge e : v.neighbors) {
+                Vertex o = e.other(v);
+                long altDist = v.distToSource + e.weight;
+                if (altDist < o.distToSource) {
+                    o.distToSource = altDist;
+                    o.predecessor = e;
+                    pq.add(new WeightedVertex(o));
+                }
+            }
+        }
+    }
+    
     // *************************
     // Find shortest paths via Delta stepping.
 
