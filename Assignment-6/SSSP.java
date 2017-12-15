@@ -1,27 +1,23 @@
 /*
     SSSP.java
-
     Single-source shortest path finder.
-
     Includes a (sequential) implementation of Dijkstra's algorithm,
     which is O((m + n) log n).
-
     Also includes a (sequential) implementation of Delta stepping.
     You need to create a parallel version of this.
-
     Michael L. Scott, November 2017; based heavily on earlier
     incarnations of several programming projects, and on Delaunay mesh
     code written in 2007.
  */
 
-package csc254;
+//package csc254;
 
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import javax.swing.*;
 
-import csc254.Coordinator.KilledException;
+import java.util.concurrent.TimeUnit;
 
 import java.util.*;
 import java.util.concurrent.BrokenBarrierException;
@@ -187,7 +183,7 @@ public class SSSP {
         } else if (an == FULL_ANIMATION) {
             Surface.EdgeRoutine er = new Surface.EdgeRoutine() {
                 public void run(int x1, int y1, int x2, int y2, boolean dum, long w)
-                        throws KilledException {
+                        throws Coordinator.KilledException {
                     c.hesitate();
                     a.repaint();        // graphics need to be re-rendered
                 }};
@@ -376,7 +372,7 @@ class Surface {
         public final int weight;
         private boolean selected;
 
-        public void select() throws KilledException {
+        public void select() throws Coordinator.KilledException {
             selected = true;
             if (edgeSelectHook != null) {
                 edgeSelectHook.run(v1.xCoord, v1.yCoord, v2.xCoord, v2.yCoord, true,
@@ -384,7 +380,7 @@ class Surface {
             }
         }
 
-        public void unselect() throws KilledException {
+        public void unselect() throws Coordinator.KilledException {
             selected = false;
             if (edgeUnSelectHook != null) {
                 edgeUnSelectHook.run(v1.xCoord, v1.yCoord, v2.xCoord, v2.yCoord, false, 0);
@@ -411,7 +407,7 @@ class Surface {
     //
     public interface EdgeRoutine {
         public void run(int x1, int y1, int x2, int y2, boolean selected, long weight)
-            throws KilledException;
+            throws Coordinator.KilledException;
     }
     public interface VertexRoutine{
         public void run(int x, int y);
@@ -560,7 +556,7 @@ class Surface {
     // *************************
     // Find shortest paths via Dijkstra's algorithm.
     //
-    public void DijkstraSolve() throws KilledException {
+    public void DijkstraSolve() throws Coordinator.KilledException {
         PriorityQueue<Vertex> pq = new PriorityQueue<Vertex>(n, new DistanceComparator());
         Vertex v = vertices[0];
         for (Edge e : v.neighbors) {
@@ -591,11 +587,7 @@ class Surface {
             }
         }
         //  print results
-        for (Vertex vt : vertices) {
-        	System.out.println(vt.distToSource);
-        }
     }
-
     // *************************
     // Find shortest paths via Delta stepping.
 
@@ -614,7 +606,7 @@ class Surface {
         // To relax a request is to consider whether the e might provide
         // v with a better path back to the source.
         //
-        public void relax(Vector<LinkedHashSet<Vertex>> buckets) throws KilledException {
+        public void relax(Vector<LinkedHashSet<Vertex>> buckets) throws Coordinator.KilledException {
             Vertex o = e.other(v);
             long altDist = o.distToSource + e.weight;
             if (altDist < v.distToSource) {
@@ -660,11 +652,11 @@ class Surface {
     //  map thread to integer
     HashMap<Long, Integer> t2i = new HashMap<Long, Integer>();
     
-    //  check this thread has sent
-    Vector<Boolean> isSend = new Vector<Boolean>();
+    //  check the current bucket is done
+    ArrayList<Boolean> isEmpty = new ArrayList<Boolean>();
     
-    //  check the thread is done
-    Vector<Boolean> isEmpty = new Vector<Boolean>();
+    //  check the whole buckets is empty
+    ArrayList<Boolean> isDone = new ArrayList<Boolean>();
     
     //  message queue
     ArrayList<ConcurrentLinkedQueue<Request>> msgQ = new ArrayList<ConcurrentLinkedQueue<Request>>();
@@ -682,22 +674,20 @@ class Surface {
     		this.i = 0;
     		for (int i = 0; i < numBuckets; i++)
     			buckets.add(new LinkedHashSet<Vertex>());
-    		
-    		buckets.get(0).add(vertices[0]);
+            buckets.get(0).add(vertices[0]);
     	}
     	
     	
     	public void run() {
+
+            
     		while (true) {
     			
     			while (true) {
 
     				LinkedList<Vertex> removed = new LinkedList<Vertex>();
     				LinkedList<Request> requests;
-    				Boolean isSendFlag = false;
-    				
-    				isEmpty.set(t2i.get(Thread.currentThread().getId()), false);
-    				
+    				    				
     				//  deal with light 
     				while (buckets.get(i).size() > 0) {
     					requests = findRequests(buckets.get(i), true);
@@ -719,60 +709,36 @@ class Surface {
     							int srcThreadInt = t2i.get(srcThreadId);
     							int dstThreadInt = t2i.get(dstThreadId);
     							
-    							msgQ.get(dstThreadInt).add(rq);
-    							
-    							isSend.set(srcThreadInt, true);
-    							isSendFlag = true;
+    							msgQ.get(dstThreadInt).add(rq);   							
     						}
     					}
-    				}
-    					
-					//  set flag
-					if (!isSendFlag) {
-						isSend.set(t2i.get(Thread.currentThread().getId()), false);
-					}
-    				
-					//  1st barrier
-					try {
-						barrier.await();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (BrokenBarrierException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+    				}    					
+
+
+									
 					
 					//  deal received request
 					int curThreadInt = t2i.get(Thread.currentThread().getId());
-					while (!msgQ.get(curThreadInt).isEmpty()) {
-						Request rq = msgQ.get(curThreadInt).poll();
-						try {
-							rq.relax(buckets);
-						} catch (KilledException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
-					
+
+
 					//  2nd barrier
-					try {
-						barrier.await();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (BrokenBarrierException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					
+                    try {
+                        barrier.await();
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    } catch (BrokenBarrierException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+
 					//  find heavy
 					requests = findRequests(removed, false);
 					for (Request rq : requests) {
 						if (v2t.get(rq.getV()) == Thread.currentThread().getId()) {
 							try {
 								rq.relax(buckets);
-							} catch (KilledException e) {
+							} catch (Coordinator.KilledException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
@@ -782,95 +748,72 @@ class Surface {
 							int srcThreadInt = t2i.get(srcThreadId);
 							int dstThreadInt = t2i.get(dstThreadId);
 							msgQ.get(dstThreadInt).add(rq);
-							
-							isSend.set(srcThreadInt, true);
-							isSendFlag = true;
 						}
 					}
 					
-					//  set flag
-					if (!isSendFlag) {
-						isSend.set(t2i.get(Thread.currentThread().getId()), false);
-					}
 					
-					//  3rd barrier
-					try {
-						barrier.await();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (BrokenBarrierException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+
 					
 					//  deal heavy
 					while (!msgQ.get(curThreadInt).isEmpty()) {
 						Request rq = msgQ.get(curThreadInt).poll();
 						try {
 							rq.relax(buckets);
-						} catch (KilledException e) {
+						} catch (Coordinator.KilledException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 					}				
+	
+
 					
-					//  4th barrier
-					try {
-						barrier.await();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (BrokenBarrierException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					
-					int len = isSend.size();
-					boolean f = false;
-					for (int i = 0; i < len; i++) {
-						f |= isSend.get(i);
-					}
 					
 					if (buckets.get(i).size() == 0) {
 						isEmpty.set(t2i.get(Thread.currentThread().getId()), true);
+					} else {
+						isEmpty.set(t2i.get(Thread.currentThread().getId()), false);
 					}
+					
+					
 					
 				//  5th barrier
-					try {
-						barrier.await();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (BrokenBarrierException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+                    try {
+                        barrier.await();
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    } catch (BrokenBarrierException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+					
+					boolean f = true;
+					for (int i = 0; i < isEmpty.size(); i++) {
+						f &= isEmpty.get(i);
 					}
 					
-					f = true;
-					for (int i = 0; i < len; i++) {
-						f &= isEmpty.get(t2i.get(Thread.currentThread().getId()));
-					}
-					
-					
-					if (f) {
-						try {
-							System.out.println("last: " + Thread.currentThread().getId());
-							barrier.await();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						} catch (BrokenBarrierException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
+					if (f)
 						break;
-					}
+    			}
+    			//  System.out.println(Thread.currentThread().getId() + "\t" + i);
+    			i = (i + 1) % numBuckets;
+    			
+
+    			    			
+    			
+    			
+    			boolean qEmpty = true;
+    			for (int i = 0; i < numBuckets; i++) {
+    				if (buckets.get(i).isEmpty() == false)
+    					qEmpty = false;
     			}
     			
-    			i++;
+    			if (qEmpty) {
+    				isDone.set(t2i.get(Thread.currentThread().getId()), true);
+    			} else {
+    				isDone.set(t2i.get(Thread.currentThread().getId()), false);
+    			}
     			
-    			System.out.println(Thread.currentThread().getId() + " i: " + i);
     			try {
 					barrier.await();
 				} catch (InterruptedException e) {
@@ -880,45 +823,35 @@ class Surface {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-    			if (i == numBuckets) {
-    				
-					break;
+    			
+    			boolean f = true;
+    			for (int i = 0; i < isDone.size(); i++) {
+    				f &= isDone.get(i);
     			}
     			
-    			
-    			
-    			
-    			/*boolean qEmpty = true;
-    			for (int i = 0; i < numBuckets; i++) {
-    				if (buckets.get(i).isEmpty() == false)
-    					qEmpty = false;
-    			}
-    			
-    			int curThreadInt = t2i.get(Thread.currentThread().getId());
-    			if (qEmpty && msgQ.get(curThreadInt).isEmpty())
-    				break;*/
+    			if (f)
+    				break;
     		}
     	}
     }
     
     // Main solver routine.
     //
-    public void DeltaSolve(int numThreads, CyclicBarrier barrier) throws KilledException {
+    public void DeltaSolve(int numThreads, CyclicBarrier barrier) throws Coordinator.KilledException {
         numBuckets = 2 * degree;
         delta = maxCoord / degree;
         // All buckets, together, cover a range of 2 * maxCoord,
         // which is larger than the weight of any edge, so a relaxation
         // will never wrap all the way around the array.
-        
-        
-        //  set isSend to false;
-        for (int i = 0; i < numThreads; i++) {
-        	isSend.add(false);
-        }
+              
         
         //  set isDone to false
         for (int i = 0; i < numThreads; i++) {
-        	isEmpty.add(false);
+        	isEmpty.add(true);
+        }
+        
+        for (int i = 0; i < numThreads; i++) {
+        	isDone.add(true);
         }
         
         //  initialize message queue
@@ -940,7 +873,7 @@ class Surface {
         for (int i = 0; i < numThreads; i++) {
         	t2i.put(threadPool.get(i).getId(), i);
         }
-        
+        long lStartTime = System.currentTimeMillis();
         //  start thread
         for (int i = 0; i < numThreads; i++) {
         	threadPool.get(i).start();
@@ -956,10 +889,14 @@ class Surface {
 			}
         }
         
-        //  print results
-        for (Vertex vt : vertices) {
-        	System.out.println(vt.distToSource);
-        }
+    
+        
+        long lEndTime = System.currentTimeMillis();
+        
+        long output = lEndTime - lStartTime;
+        
+        System.out.println("Elapsed time in milliseconds: " + output);
+//        //  print results
     }
 
     // End of Delta stepping.
