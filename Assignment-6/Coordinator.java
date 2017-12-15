@@ -1,16 +1,16 @@
 /*
     Coordinator.java
-
     Serves to slow down execution of a collection of threads, so that
     behavior is visible on the screen, and to notify all running threads
     when the user wants them to die.
-
     Michael L. Scott, November 2017, based on code
     originally written in 2002.
  */
 
 // import java.util.*;
 // import java.lang.*;
+
+//package csc254;
 
 class Coordinator {
     private boolean open = true;
