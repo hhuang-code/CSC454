@@ -31,3 +31,8 @@ https://www.cs.rochester.edu/courses/254/fall2017/assignments/xref.shtml
 ```
 https://www.cs.rochester.edu/courses/254/fall2017/assignments/tombstones.shtml
 ```
+
+## Assignment-6
+```
+https://www.cs.rochester.edu/u/scott/courses/254/assignments/java.shtml
+```
